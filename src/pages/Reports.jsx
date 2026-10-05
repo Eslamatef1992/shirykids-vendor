@@ -1,14 +1,70 @@
-import React, { useEffect, useState } from 'react';
-import { Card, Table, Tag, Typography, Spin, Empty, Input } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import React, { useEffect, useState, useRef } from 'react';
+import { Card, Table, Tag, Typography, Spin, Empty, Input, Button, Modal } from 'antd';
+import { SearchOutlined, QrcodeOutlined, DownloadOutlined } from '@ant-design/icons';
+import QRCode from 'qrcode';
 import api from '../api/axios';
 
 const { Text } = Typography;
 
+function QrModal({ record, onClose }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (record?.qrCode && canvasRef.current) {
+      QRCode.toCanvas(canvasRef.current, record.qrCode, {
+        width: 260,
+        margin: 2,
+        color: { dark: '#1A1A2E', light: '#ffffff' },
+      });
+    }
+  }, [record]);
+
+  const download = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = `qr-${record.couponName || record.id}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
+
+  return (
+    <Modal
+      open={!!record}
+      onCancel={onClose}
+      footer={null}
+      title={<span style={{ fontWeight: 700 }}>QR Code — {record?.couponName}</span>}
+      centered
+      width={340}
+    >
+      <div style={{ textAlign: 'center', padding: '16px 0' }}>
+        <canvas ref={canvasRef} style={{ borderRadius: 8, border: '1px solid #f0f0f0' }} />
+
+        <div style={{ marginTop: 12, fontSize: 13, color: '#666' }}>
+          <div><strong>Client:</strong> {record?.clientName} · {record?.clientPhone}</div>
+          <div><strong>Amount:</strong> {record?.purchaseAmount ? `KD ${parseFloat(record.purchaseAmount).toFixed(3)}` : '—'}</div>
+          <div><strong>Scanned:</strong> {record?.scannedAt ? new Date(record.scannedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</div>
+        </div>
+
+        <Button
+          type="primary"
+          icon={<DownloadOutlined />}
+          onClick={download}
+          style={{ marginTop: 16, background: '#FF383C', borderColor: '#FF383C', borderRadius: 8 }}
+          block
+        >
+          Download QR
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
 export default function Reports() {
-  const [data, setData]       = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch]   = useState('');
+  const [data, setData]         = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState('');
+  const [selected, setSelected] = useState(null);
 
   useEffect(() => {
     api.get('/vendor/redemptions')
@@ -60,6 +116,20 @@ export default function Reports() {
       dataIndex: 'scannedAt',
       render: v => v ? new Date(v).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '—',
     },
+    {
+      title: 'QR',
+      align: 'center',
+      render: (_, r) => r.qrCode ? (
+        <Button
+          icon={<QrcodeOutlined />}
+          size="small"
+          onClick={() => setSelected(r)}
+          style={{ borderColor: '#FF383C', color: '#FF383C' }}
+        >
+          View
+        </Button>
+      ) : '—',
+    },
   ];
 
   if (loading) return (
@@ -69,32 +139,36 @@ export default function Reports() {
   );
 
   return (
-    <Card
-      bordered={false}
-      style={{ borderRadius: 12 }}
-      title={<span style={{ fontWeight: 700 }}>Scan Reports</span>}
-      extra={
-        <Input
-          prefix={<SearchOutlined style={{ color: '#bbb' }} />}
-          placeholder="Search client, coupon, scanner..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ width: 260, borderRadius: 8 }}
-          allowClear
-        />
-      }
-    >
-      {filtered.length
-        ? (
-          <Table
-            dataSource={filtered}
-            columns={columns}
-            rowKey="id"
-            pagination={{ pageSize: 20, showSizeChanger: false }}
+    <>
+      <Card
+        bordered={false}
+        style={{ borderRadius: 12 }}
+        title={<span style={{ fontWeight: 700 }}>Scan Reports</span>}
+        extra={
+          <Input
+            prefix={<SearchOutlined style={{ color: '#bbb' }} />}
+            placeholder="Search client, coupon, scanner..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: 260, borderRadius: 8 }}
+            allowClear
           />
-        )
-        : <Empty description="No scan records yet" />
-      }
-    </Card>
+        }
+      >
+        {filtered.length
+          ? (
+            <Table
+              dataSource={filtered}
+              columns={columns}
+              rowKey="id"
+              pagination={{ pageSize: 20, showSizeChanger: false }}
+            />
+          )
+          : <Empty description="No scan records yet" />
+        }
+      </Card>
+
+      <QrModal record={selected} onClose={() => setSelected(null)} />
+    </>
   );
 }
