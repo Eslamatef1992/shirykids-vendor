@@ -1,24 +1,43 @@
 import React, { useEffect, useState } from 'react';
 import {
   Card, Table, Button, Modal, Form, Input, Tag, Popconfirm,
-  message, Typography, Empty, Space, Radio,
+  message, Typography, Empty, Space, Radio, Switch, Progress, Row, Col, Statistic,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, UserOutlined, QrcodeOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined, DeleteOutlined, UserOutlined, QrcodeOutlined,
+  CheckCircleOutlined, LockOutlined, BarChartOutlined,
+} from '@ant-design/icons';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+} from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/axios';
 
 const { Text } = Typography;
 
+const COLORS = ['#FF383C','#1890ff','#52c41a','#fa8c16','#722ed1','#13c2c2'];
+
 export default function Scanners() {
   const { admin } = useAuth();
-  const [scanners, setScanners]   = useState([]);
-  const [logs, setLogs]           = useState([]);
+  const [scanners, setScanners]         = useState([]);
+  const [scannerStats, setScannerStats] = useState([]);
+  const [logs, setLogs]                 = useState([]);
   const [loadingScanners, setLoadingScanners] = useState(true);
   const [loadingLogs, setLoadingLogs]         = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [saving, setSaving]       = useState(false);
-  const [filter, setFilter]       = useState('all');  // all | scanned | redeemed
+
+  // Add scanner modal
+  const [modalOpen, setModalOpen]   = useState(false);
+  const [saving, setSaving]         = useState(false);
   const [form] = Form.useForm();
+
+  // Reset password modal
+  const [resetTarget, setResetTarget] = useState(null);   // scanner object
+  const [resetForm]                   = Form.useForm();
+  const [resetting, setResetting]     = useState(false);
+
+  const [filter, setFilter] = useState('all');  // all | scanned | redeemed
+
+  // ── Load data ──────────────────────────────────────────────────────────────
 
   const loadScanners = () =>
     api.get('/vendor/scanners')
@@ -26,13 +45,20 @@ export default function Scanners() {
       .catch(() => {})
       .finally(() => setLoadingScanners(false));
 
+  const loadStats = () =>
+    api.get('/vendor/scanner-stats')
+      .then(r => setScannerStats(r.data.data || []))
+      .catch(() => {});
+
   const loadLogs = () =>
     api.get('/vendor/scan-logs')
       .then(r => setLogs(r.data.data || []))
       .catch(() => {})
       .finally(() => setLoadingLogs(false));
 
-  useEffect(() => { loadScanners(); loadLogs(); }, []);
+  useEffect(() => { loadScanners(); loadStats(); loadLogs(); }, []);
+
+  // ── Actions ────────────────────────────────────────────────────────────────
 
   const createScanner = async (vals) => {
     setSaving(true);
@@ -42,6 +68,7 @@ export default function Scanners() {
       setModalOpen(false);
       form.resetFields();
       loadScanners();
+      loadStats();
     } catch (e) {
       message.error(e.response?.data?.message || 'Error creating scanner');
     } finally {
@@ -54,18 +81,61 @@ export default function Scanners() {
       await api.delete(`/vendor/scanners/${id}`);
       message.success('Scanner removed');
       loadScanners();
+      loadStats();
     } catch (e) {
       message.error(e.response?.data?.message || 'Error removing scanner');
     }
   };
 
+  const toggleStatus = async (scanner) => {
+    try {
+      const res = await api.put(`/vendor/scanners/${scanner.id}/status`);
+      message.success(`Scanner ${res.data.status === 'active' ? 'enabled' : 'disabled'}`);
+      loadScanners();
+    } catch (e) {
+      message.error(e.response?.data?.message || 'Error updating status');
+    }
+  };
+
+  const doResetPassword = async (vals) => {
+    setResetting(true);
+    try {
+      await api.put(`/vendor/scanners/${resetTarget.id}/password`, { password: vals.password });
+      message.success('Password updated successfully');
+      setResetTarget(null);
+      resetForm.resetFields();
+    } catch (e) {
+      message.error(e.response?.data?.message || 'Error updating password');
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  // ── Columns ────────────────────────────────────────────────────────────────
+
   const scannerCols = [
     { title: 'Name',  dataIndex: 'name',  key: 'name' },
     { title: 'Email', dataIndex: 'email', key: 'email' },
     {
+      title: 'Last Login',
+      dataIndex: 'last_login_at',
+      render: v => v ? new Date(v).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : <Text type="secondary">Never</Text>,
+    },
+    {
       title: 'Status',
       dataIndex: 'status',
-      render: s => <Tag color={s === 'active' ? 'green' : 'red'}>{s}</Tag>,
+      render: (s, r) =>
+        r.id === admin?.id
+          ? <Tag color="green">{s}</Tag>
+          : (
+            <Switch
+              checked={s === 'active'}
+              checkedChildren="Active"
+              unCheckedChildren="Off"
+              size="small"
+              onChange={() => toggleStatus(r)}
+            />
+          ),
     },
     {
       title: 'Actions',
@@ -73,14 +143,21 @@ export default function Scanners() {
         r.id === admin?.id
           ? <Text type="secondary">You</Text>
           : (
-            <Popconfirm title="Remove this scanner?" onConfirm={() => removeScanner(r.id)}>
-              <Button icon={<DeleteOutlined />} size="small" danger />
-            </Popconfirm>
+            <Space>
+              <Button
+                icon={<LockOutlined />}
+                size="small"
+                onClick={() => { setResetTarget(r); resetForm.resetFields(); }}
+                title="Reset password"
+              />
+              <Popconfirm title="Remove this scanner?" onConfirm={() => removeScanner(r.id)}>
+                <Button icon={<DeleteOutlined />} size="small" danger />
+              </Popconfirm>
+            </Space>
           ),
     },
   ];
 
-  // Filter logs based on selected tab
   const filteredLogs = logs.filter(l => {
     if (filter === 'scanned')  return l.status === 'valid';
     if (filter === 'redeemed') return l.status === 'used';
@@ -102,8 +179,8 @@ export default function Scanners() {
       title: 'Status',
       dataIndex: 'status',
       render: s => (
-        s === 'valid'     ? <Tag color="blue"   icon={<QrcodeOutlined />}>Scanned</Tag>
-        : s === 'used'    ? <Tag color="green"  icon={<CheckCircleOutlined />}>Redeemed</Tag>
+        s === 'valid'  ? <Tag color="blue"  icon={<QrcodeOutlined />}>Scanned</Tag>
+        : s === 'used' ? <Tag color="green" icon={<CheckCircleOutlined />}>Redeemed</Tag>
         : <Tag color="red">Not Found</Tag>
       ),
     },
@@ -114,8 +191,58 @@ export default function Scanners() {
     },
   ];
 
+  // ── Per-scanner breakdown chart ────────────────────────────────────────────
+
+  const chartData = scannerStats.map(s => ({
+    name:     s.name,
+    Scanned:  s.scanned,
+    Redeemed: s.redeemed,
+  }));
+
   return (
     <>
+      {/* Per-scanner stats chart */}
+      {chartData.length > 0 && (
+        <Card
+          bordered={false}
+          style={{ borderRadius: 12, marginBottom: 24 }}
+          title={<span style={{ fontWeight: 700 }}><BarChartOutlined /> Per-Scanner Performance</span>}
+        >
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            {scannerStats.map((s, i) => (
+              <Col key={s.id} xs={12} sm={8} md={6}>
+                <Card size="small" bordered style={{ borderRadius: 8, borderColor: COLORS[i % COLORS.length] }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4, color: COLORS[i % COLORS.length] }}>{s.name}</div>
+                  <div style={{ fontSize: 12, color: '#555' }}>
+                    <div>Scanned: <strong>{s.scanned}</strong></div>
+                    <div>Redeemed: <strong>{s.redeemed}</strong></div>
+                    <div>Total: <strong>{s.total}</strong></div>
+                  </div>
+                  {s.total > 0 && (
+                    <Progress
+                      percent={Math.round((s.redeemed / s.total) * 100)}
+                      size="small"
+                      strokeColor={COLORS[i % COLORS.length]}
+                      style={{ marginTop: 6 }}
+                    />
+                  )}
+                </Card>
+              </Col>
+            ))}
+          </Row>
+
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={chartData} margin={{ top: 5, right: 16, left: 0, bottom: 5 }}>
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Bar dataKey="Scanned"  fill="#1890ff" radius={[4,4,0,0]} />
+              <Bar dataKey="Redeemed" fill="#52c41a" radius={[4,4,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
+
       {/* Scanner accounts */}
       <Card
         bordered={false}
@@ -180,6 +307,43 @@ export default function Scanners() {
         <Text type="secondary" style={{ fontSize: 12 }}>
           This account will only be able to scan coupons from your vendor.
         </Text>
+      </Modal>
+
+      {/* Reset password modal */}
+      <Modal
+        title={`Reset Password — ${resetTarget?.name}`}
+        open={!!resetTarget}
+        onCancel={() => { setResetTarget(null); resetForm.resetFields(); }}
+        onOk={() => resetForm.submit()}
+        confirmLoading={resetting}
+        okButtonProps={{ style: { background: '#FF383C', borderColor: '#FF383C' } }}
+        okText="Update Password"
+      >
+        <Form form={resetForm} layout="vertical" onFinish={doResetPassword}>
+          <Form.Item
+            name="password"
+            label="New Password"
+            rules={[{ required: true, min: 6, message: 'At least 6 characters' }]}
+          >
+            <Input.Password prefix={<LockOutlined />} placeholder="New password" />
+          </Form.Item>
+          <Form.Item
+            name="confirm"
+            label="Confirm Password"
+            dependencies={['password']}
+            rules={[
+              { required: true },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('password') === value) return Promise.resolve();
+                  return Promise.reject('Passwords do not match');
+                },
+              }),
+            ]}
+          >
+            <Input.Password prefix={<LockOutlined />} placeholder="Confirm new password" />
+          </Form.Item>
+        </Form>
       </Modal>
     </>
   );

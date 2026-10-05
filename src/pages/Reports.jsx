@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Card, Table, Tag, Typography, Spin, Empty, Input, Button, Modal } from 'antd';
-import { SearchOutlined, QrcodeOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Card, Table, Tag, Typography, Spin, Empty, Input, Button, Modal, Space, DatePicker } from 'antd';
+import { SearchOutlined, QrcodeOutlined, DownloadOutlined, FileExcelOutlined } from '@ant-design/icons';
 import QRCode from 'qrcode';
+import * as XLSX from 'xlsx';
 import api from '../api/axios';
 
 const { Text } = Typography;
+const { RangePicker } = DatePicker;
 
 function QrModal({ record, onClose }) {
   const canvasRef = useRef(null);
@@ -39,13 +41,11 @@ function QrModal({ record, onClose }) {
     >
       <div style={{ textAlign: 'center', padding: '16px 0' }}>
         <canvas ref={canvasRef} style={{ borderRadius: 8, border: '1px solid #f0f0f0' }} />
-
         <div style={{ marginTop: 12, fontSize: 13, color: '#666' }}>
           <div><strong>Client:</strong> {record?.clientName} · {record?.clientPhone}</div>
           <div><strong>Amount:</strong> {record?.purchaseAmount ? `KD ${parseFloat(record.purchaseAmount).toFixed(3)}` : '—'}</div>
           <div><strong>Scanned:</strong> {record?.scannedAt ? new Date(record.scannedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</div>
         </div>
-
         <Button
           type="primary"
           icon={<DownloadOutlined />}
@@ -61,10 +61,11 @@ function QrModal({ record, onClose }) {
 }
 
 export default function Reports() {
-  const [data, setData]         = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [search, setSearch]     = useState('');
-  const [selected, setSelected] = useState(null);
+  const [data, setData]           = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [search, setSearch]       = useState('');
+  const [selected, setSelected]   = useState(null);
+  const [dateRange, setDateRange] = useState(null);  // [dayjs, dayjs] | null
 
   useEffect(() => {
     api.get('/vendor/redemptions')
@@ -73,12 +74,38 @@ export default function Reports() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = data.filter(r =>
-    !search ||
-    r.clientName?.toLowerCase().includes(search.toLowerCase()) ||
-    r.couponName?.toLowerCase().includes(search.toLowerCase()) ||
-    r.scannerName?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = data.filter(r => {
+    if (search && !(
+      r.clientName?.toLowerCase().includes(search.toLowerCase()) ||
+      r.couponName?.toLowerCase().includes(search.toLowerCase()) ||
+      r.scannerName?.toLowerCase().includes(search.toLowerCase())
+    )) return false;
+
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      const scanDate = new Date(r.scannedAt);
+      if (scanDate < dateRange[0].startOf('day').toDate()) return false;
+      if (scanDate > dateRange[1].endOf('day').toDate()) return false;
+    }
+
+    return true;
+  });
+
+  const exportExcel = () => {
+    const rows = filtered.map(r => ({
+      'Client Name':    r.clientName  || '—',
+      'Client Phone':   r.clientPhone || '—',
+      'Coupon':         r.couponName  || '—',
+      'Amount (KD)':    r.purchaseAmount ? parseFloat(r.purchaseAmount).toFixed(3) : '—',
+      'Scanner':        r.scannerName || '—',
+      'Purchase Date':  r.purchasedAt ? new Date(r.purchasedAt).toLocaleString('en-GB') : '—',
+      'Scan Date':      r.scannedAt   ? new Date(r.scannedAt).toLocaleString('en-GB')   : '—',
+      'QR Code':        r.qrCode || '—',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Scan Reports');
+    XLSX.writeFile(wb, `scan-reports-${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
 
   const columns = [
     {
@@ -145,14 +172,31 @@ export default function Reports() {
         style={{ borderRadius: 12 }}
         title={<span style={{ fontWeight: 700 }}>Scan Reports</span>}
         extra={
-          <Input
-            prefix={<SearchOutlined style={{ color: '#bbb' }} />}
-            placeholder="Search client, coupon, scanner..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ width: 260, borderRadius: 8 }}
-            allowClear
-          />
+          <Space wrap>
+            <RangePicker
+              onChange={range => setDateRange(range)}
+              size="small"
+              style={{ borderRadius: 8 }}
+            />
+            <Input
+              prefix={<SearchOutlined style={{ color: '#bbb' }} />}
+              placeholder="Search client, coupon, scanner..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ width: 220, borderRadius: 8 }}
+              allowClear
+              size="small"
+            />
+            <Button
+              icon={<FileExcelOutlined />}
+              size="small"
+              onClick={exportExcel}
+              disabled={!filtered.length}
+              style={{ borderRadius: 8, borderColor: '#52c41a', color: '#52c41a' }}
+            >
+              Export Excel
+            </Button>
+          </Space>
         }
       >
         {filtered.length
