@@ -1,13 +1,28 @@
-import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import VendorLayout from './layouts/VendorLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Scanners from './pages/Scanners';
+
+const Protected = ({ children }) => {
+  const { admin } = useAuth();
+  return admin ? children : <Navigate to="/login" replace />;
+};
 
 export default function App() {
-  const [admin, setAdmin] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('vendor_admin')); }
-    catch { return null; }
-  });
-
-  if (!admin) return <Login onLogin={setAdmin} />;
-  return <Dashboard admin={admin} onLogout={() => setAdmin(null)} />;
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<Protected><VendorLayout /></Protected>}>
+            <Route index element={<Dashboard />} />
+            <Route path="scanners" element={<Scanners />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
 }
