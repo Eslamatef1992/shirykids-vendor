@@ -13,10 +13,13 @@ api.interceptors.request.use(cfg => {
 api.interceptors.response.use(
   res => res,
   err => {
-    if (err.response?.status === 401) {
+    // Only auto-logout on 401 for authenticated requests (not the login call itself)
+    const url = err.config?.url || '';
+    const isLoginCall = url.includes('/auth/admin/login');
+    if (err.response?.status === 401 && !isLoginCall) {
       localStorage.removeItem('vendor_token');
       localStorage.removeItem('vendor_admin');
-      window.location.href = '/';
+      window.location.href = '/login';
     }
     return Promise.reject(err);
   }
