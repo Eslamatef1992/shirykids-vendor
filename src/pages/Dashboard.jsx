@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Row, Col, Card, Statistic, Table, Tag, Avatar, Space, Spin, Empty, Typography } from 'antd';
-import { ShopOutlined, ShoppingCartOutlined, QrcodeOutlined } from '@ant-design/icons';
+import { ShopOutlined, ShoppingCartOutlined, QrcodeOutlined, DollarOutlined } from '@ant-design/icons';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
@@ -12,15 +12,18 @@ const BASE = (import.meta.env.VITE_API_URL || 'https://back.sherykids.com/api/v1
 export default function Dashboard() {
   const [stats, setStats]         = useState(null);
   const [activity, setActivity]   = useState([]);
+  const [revenue, setRevenue]     = useState(null);
   const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get('/vendor/stats'),
       api.get('/vendor/daily-activity'),
+      api.get('/vendor/analytics'),
     ])
-      .then(([s, a]) => {
+      .then(([s, a, r]) => {
         setStats(s.data);
+        setRevenue(r.data.data);
         setActivity(
           (a.data.data || []).map(r => ({
             day:      r.day?.slice(5) || '',   // MM-DD
@@ -67,7 +70,7 @@ export default function Dashboard() {
     <>
       {/* Stats */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12} lg={6}>
           <Card bordered={false} style={{ borderRadius: 12 }}>
             <Statistic
               title="Total Coupons"
@@ -77,23 +80,34 @@ export default function Dashboard() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12} lg={6}>
           <Card bordered={false} style={{ borderRadius: 12 }}>
             <Statistic
               title="Sold"
               value={stats?.summary?.totalSold ?? 0}
-              prefix={<ShoppingCartOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a' }}
+              prefix={<ShoppingCartOutlined style={{ color: '#fa8c16' }} />}
+              valueStyle={{ color: '#fa8c16' }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12} lg={6}>
           <Card bordered={false} style={{ borderRadius: 12 }}>
             <Statistic
               title="Scanned"
               value={stats?.summary?.totalScanned ?? 0}
               prefix={<QrcodeOutlined style={{ color: '#1890ff' }} />}
               valueStyle={{ color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card bordered={false} style={{ borderRadius: 12 }}>
+            <Statistic
+              title="Total Revenue"
+              value={revenue?.totalRevenue?.toFixed(3) ?? '0.000'}
+              prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
+              suffix="KD"
+              valueStyle={{ color: '#52c41a' }}
             />
           </Card>
         </Col>

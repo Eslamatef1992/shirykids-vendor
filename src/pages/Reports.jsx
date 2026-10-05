@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Card, Table, Tag, Typography, Spin, Empty, Input, Button, Modal, Space, DatePicker } from 'antd';
-import { SearchOutlined, QrcodeOutlined, DownloadOutlined, FileExcelOutlined } from '@ant-design/icons';
+import { SearchOutlined, QrcodeOutlined, DownloadOutlined, FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 import QRCode from 'qrcode';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import api from '../api/axios';
 
 const { Text } = Typography;
@@ -89,6 +91,34 @@ export default function Reports() {
 
     return true;
   });
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text('Scan Reports', 14, 16);
+    doc.setFontSize(10);
+    doc.setTextColor(120);
+    doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, 14, 22);
+
+    autoTable(doc, {
+      startY: 28,
+      head: [['Client', 'Phone', 'Coupon', 'Amount (KD)', 'Scanner', 'Purchase Date', 'Scan Date']],
+      body: filtered.map(r => [
+        r.clientName  || '—',
+        r.clientPhone || '—',
+        r.couponName  || '—',
+        r.purchaseAmount ? parseFloat(r.purchaseAmount).toFixed(3) : '—',
+        r.scannerName || '—',
+        r.purchasedAt ? new Date(r.purchasedAt).toLocaleDateString('en-GB') : '—',
+        r.scannedAt   ? new Date(r.scannedAt).toLocaleDateString('en-GB')   : '—',
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [255, 56, 60] },
+      alternateRowStyles: { fillColor: [253, 247, 247] },
+    });
+
+    doc.save(`scan-reports-${new Date().toISOString().slice(0,10)}.pdf`);
+  };
 
   const exportExcel = () => {
     const rows = filtered.map(r => ({
@@ -194,7 +224,16 @@ export default function Reports() {
               disabled={!filtered.length}
               style={{ borderRadius: 8, borderColor: '#52c41a', color: '#52c41a' }}
             >
-              Export Excel
+              Excel
+            </Button>
+            <Button
+              icon={<FilePdfOutlined />}
+              size="small"
+              onClick={exportPDF}
+              disabled={!filtered.length}
+              style={{ borderRadius: 8, borderColor: '#FF383C', color: '#FF383C' }}
+            >
+              PDF
             </Button>
           </Space>
         }

@@ -1,11 +1,14 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import logoImg from '../assets/logo.png';
-import { Layout, Menu, Avatar, Dropdown, Button, ConfigProvider } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Button, ConfigProvider, Badge } from 'antd';
 import {
   DashboardOutlined, QrcodeOutlined, LogoutOutlined,
-  UserOutlined, BarChartOutlined,
+  UserOutlined, BarChartOutlined, BellOutlined,
+  ShopOutlined, LineChartOutlined, SettingOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useEffect, useState } from 'react';
+import api from '../api/axios';
 
 const { Sider, Header, Content } = Layout;
 const SIDER_BG = '#1A1A2E';
@@ -16,19 +19,53 @@ export default function VendorLayout() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const { admin, logout } = useAuth();
+  const [notifCount, setNotifCount] = useState(0);
 
-  const vendor = admin?.vendor;
+  const vendor    = admin?.vendor;
   const vendorLogo = vendor?.logo ? `${BASE}${vendor.logo}` : null;
 
+  // Load notification count
+  useEffect(() => {
+    api.get('/vendor/notifications')
+      .then(r => setNotifCount(r.data.data?.length || 0))
+      .catch(() => {});
+  }, []);
+
   const menuItems = [
-    { key: '/',           icon: <DashboardOutlined />, label: 'Dashboard' },
-    { key: '/reports',    icon: <BarChartOutlined />,  label: 'Reports' },
-    { key: '/scanners',   icon: <QrcodeOutlined />,    label: 'Scanners' },
+    { key: '/',               icon: <DashboardOutlined />,  label: 'Dashboard' },
+    { key: '/analytics',      icon: <LineChartOutlined />,  label: 'Analytics' },
+    { key: '/coupons',        icon: <ShopOutlined />,       label: 'Coupons' },
+    { key: '/reports',        icon: <BarChartOutlined />,   label: 'Reports' },
+    { key: '/scanners',       icon: <QrcodeOutlined />,     label: 'Scanners' },
+    {
+      key: '/notifications',
+      icon: (
+        <Badge count={notifCount} size="small" offset={[6, -2]} style={{ background: PRIMARY }}>
+          <BellOutlined />
+        </Badge>
+      ),
+      label: (
+        <span>
+          Notifications
+          {notifCount > 0 && (
+            <Badge count={notifCount} size="small" style={{ background: PRIMARY, marginLeft: 8 }} />
+          )}
+        </span>
+      ),
+    },
+    { key: '/profile',        icon: <SettingOutlined />,    label: 'Profile' },
   ];
 
   const userMenu = {
-    items: [{ key: 'logout', icon: <LogoutOutlined />, label: 'Logout', danger: true }],
-    onClick: ({ key }) => { if (key === 'logout') { logout(); navigate('/login'); } },
+    items: [
+      { key: 'profile', icon: <UserOutlined />, label: 'Profile' },
+      { type: 'divider' },
+      { key: 'logout', icon: <LogoutOutlined />, label: 'Logout', danger: true },
+    ],
+    onClick: ({ key }) => {
+      if (key === 'logout') { logout(); navigate('/login'); }
+      if (key === 'profile') navigate('/profile');
+    },
   };
 
   return (
@@ -99,14 +136,26 @@ export default function VendorLayout() {
             {vendor?.name ? `Welcome, ${vendor.name}` : 'Vendor Dashboard'}
           </div>
 
-          <Dropdown menu={userMenu}>
-            <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Avatar style={{ background: PRIMARY }} icon={<UserOutlined />}>
-                {admin?.name?.[0]}
-              </Avatar>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>{admin?.name}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Bell icon shortcut */}
+            <div
+              style={{ cursor: 'pointer', position: 'relative' }}
+              onClick={() => navigate('/notifications')}
+            >
+              <Badge count={notifCount} size="small" style={{ background: PRIMARY }}>
+                <BellOutlined style={{ fontSize: 18, color: '#666' }} />
+              </Badge>
             </div>
-          </Dropdown>
+
+            <Dropdown menu={userMenu}>
+              <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Avatar style={{ background: PRIMARY }} icon={<UserOutlined />}>
+                  {admin?.name?.[0]}
+                </Avatar>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>{admin?.name}</span>
+              </div>
+            </Dropdown>
+          </div>
         </Header>
 
         <Content style={{ padding: 24, background: '#f5f6fa' }}>

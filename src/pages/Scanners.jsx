@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import {
   PlusOutlined, DeleteOutlined, UserOutlined, QrcodeOutlined,
-  CheckCircleOutlined, LockOutlined, BarChartOutlined,
+  CheckCircleOutlined, LockOutlined, BarChartOutlined, EditOutlined,
 } from '@ant-design/icons';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -31,9 +31,14 @@ export default function Scanners() {
   const [form] = Form.useForm();
 
   // Reset password modal
-  const [resetTarget, setResetTarget] = useState(null);   // scanner object
+  const [resetTarget, setResetTarget] = useState(null);
   const [resetForm]                   = Form.useForm();
   const [resetting, setResetting]     = useState(false);
+
+  // Edit scanner modal
+  const [editTarget, setEditTarget]   = useState(null);
+  const [editForm]                    = Form.useForm();
+  const [editing, setEditing]         = useState(false);
 
   const [filter, setFilter] = useState('all');  // all | scanned | redeemed
 
@@ -97,6 +102,21 @@ export default function Scanners() {
     }
   };
 
+  const doEditScanner = async (vals) => {
+    setEditing(true);
+    try {
+      await api.put(`/vendor/scanners/${editTarget.id}`, { name: vals.name, email: vals.email });
+      message.success('Scanner updated');
+      setEditTarget(null);
+      editForm.resetFields();
+      loadScanners();
+    } catch (e) {
+      message.error(e.response?.data?.message || 'Error updating scanner');
+    } finally {
+      setEditing(false);
+    }
+  };
+
   const doResetPassword = async (vals) => {
     setResetting(true);
     try {
@@ -144,6 +164,12 @@ export default function Scanners() {
           ? <Text type="secondary">You</Text>
           : (
             <Space>
+              <Button
+                icon={<EditOutlined />}
+                size="small"
+                onClick={() => { setEditTarget(r); editForm.setFieldsValue({ name: r.name, email: r.email }); }}
+                title="Edit scanner"
+              />
               <Button
                 icon={<LockOutlined />}
                 size="small"
@@ -307,6 +333,26 @@ export default function Scanners() {
         <Text type="secondary" style={{ fontSize: 12 }}>
           This account will only be able to scan coupons from your vendor.
         </Text>
+      </Modal>
+
+      {/* Edit scanner modal */}
+      <Modal
+        title={`Edit Scanner — ${editTarget?.name}`}
+        open={!!editTarget}
+        onCancel={() => { setEditTarget(null); editForm.resetFields(); }}
+        onOk={() => editForm.submit()}
+        confirmLoading={editing}
+        okButtonProps={{ style: { background: '#FF383C', borderColor: '#FF383C' } }}
+        okText="Save Changes"
+      >
+        <Form form={editForm} layout="vertical" onFinish={doEditScanner}>
+          <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+            <Input prefix={<UserOutlined />} placeholder="Scanner's name" />
+          </Form.Item>
+          <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
+            <Input placeholder="Login email" />
+          </Form.Item>
+        </Form>
       </Modal>
 
       {/* Reset password modal */}
