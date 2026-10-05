@@ -2,22 +2,28 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import logoImg from '../assets/logo.png';
 import { Layout, Menu, Avatar, Dropdown, Button, ConfigProvider } from 'antd';
 import {
-  DashboardOutlined, QrcodeOutlined, LogoutOutlined, UserOutlined,
+  DashboardOutlined, QrcodeOutlined, LogoutOutlined,
+  UserOutlined, BarChartOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 
 const { Sider, Header, Content } = Layout;
 const SIDER_BG = '#1A1A2E';
 const PRIMARY   = '#FF383C';
+const BASE = (import.meta.env.VITE_API_URL || 'https://back.sherykids.com/api/v1').replace('/api/v1', '');
 
 export default function VendorLayout() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const { admin, logout } = useAuth();
 
+  const vendor = admin?.vendor;
+  const vendorLogo = vendor?.logo ? `${BASE}${vendor.logo}` : null;
+
   const menuItems = [
-    { key: '/',         icon: <DashboardOutlined />, label: 'Dashboard' },
-    { key: '/scanners', icon: <QrcodeOutlined />,    label: 'Scanners' },
+    { key: '/',           icon: <DashboardOutlined />, label: 'Dashboard' },
+    { key: '/reports',    icon: <BarChartOutlined />,  label: 'Reports' },
+    { key: '/scanners',   icon: <QrcodeOutlined />,    label: 'Scanners' },
   ];
 
   const userMenu = {
@@ -28,12 +34,37 @@ export default function VendorLayout() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider width={240} style={{ background: SIDER_BG }} breakpoint="lg" collapsedWidth={60}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 16px' }}>
-          <img src={logoImg} alt="Shiry Kids" style={{ width: 38, height: 38, objectFit: 'contain', borderRadius: 8 }} />
-          <div>
-            <div style={{ color: '#fff', fontSize: 17, fontWeight: 800, lineHeight: 1.1 }}>Shiry Kids</div>
-            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 2 }}>Vendor Dashboard</div>
+        {/* Logo + vendor branding */}
+        <div style={{ padding: '20px 20px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <img src={logoImg} alt="Shiry Kids" style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8 }} />
+            <div>
+              <div style={{ color: '#fff', fontSize: 15, fontWeight: 800, lineHeight: 1.1 }}>Shiry Kids</div>
+              <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>Vendor Dashboard</div>
+            </div>
           </div>
+
+          {/* Vendor card */}
+          {vendor && (
+            <div style={{
+              background: 'rgba(255,255,255,0.06)',
+              borderRadius: 10,
+              padding: '12px 14px',
+              marginBottom: 8,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}>
+              {vendorLogo
+                ? <img src={vendorLogo} alt={vendor.name} style={{ width: 38, height: 38, borderRadius: 8, objectFit: 'cover', background: '#fff' }} />
+                : <Avatar size={38} style={{ background: PRIMARY, fontSize: 18, fontWeight: 700 }}>{vendor.name?.[0]}</Avatar>
+              }
+              <div style={{ overflow: 'hidden' }}>
+                <div style={{ color: '#fff', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{vendor.name}</div>
+                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>Welcome back 👋</div>
+              </div>
+            </div>
+          )}
         </div>
 
         <ConfigProvider theme={{ components: { Menu: {
@@ -65,7 +96,7 @@ export default function VendorLayout() {
           borderBottom: '1px solid #f0f0f0',
         }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>
-            {admin?.vendor?.name || 'Vendor Dashboard'}
+            {vendor?.name ? `Welcome, ${vendor.name}` : 'Vendor Dashboard'}
           </div>
 
           <Dropdown menu={userMenu}>
