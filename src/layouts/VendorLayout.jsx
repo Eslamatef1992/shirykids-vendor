@@ -4,7 +4,7 @@ import { Layout, Menu, Avatar, Dropdown, Button, ConfigProvider, Badge } from 'a
 import {
   DashboardOutlined, QrcodeOutlined, LogoutOutlined,
   UserOutlined, BarChartOutlined, BellOutlined,
-  ShopOutlined, LineChartOutlined, SettingOutlined,
+  ShopOutlined, LineChartOutlined, SettingOutlined, TeamOutlined, ScanOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useEffect, useState } from 'react';
@@ -35,8 +35,10 @@ export default function VendorLayout() {
     { key: '/',               icon: <DashboardOutlined />,  label: 'Dashboard' },
     { key: '/analytics',      icon: <LineChartOutlined />,  label: 'Analytics' },
     { key: '/coupons',        icon: <ShopOutlined />,       label: 'Coupons' },
+    { key: '/customers',      icon: <TeamOutlined />,       label: 'Customers' },
     { key: '/reports',        icon: <BarChartOutlined />,   label: 'Reports' },
     { key: '/scanners',       icon: <QrcodeOutlined />,     label: 'Scanners' },
+    { key: '/qr-scanner',     icon: <ScanOutlined />,       label: 'QR Scanner' },
     {
       key: '/notifications',
       icon: (

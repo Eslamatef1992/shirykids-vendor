@@ -2,13 +2,15 @@ import React, { useEffect, useState } from 'react';
 import {
   Card, Table, Tag, Avatar, Space, Spin, Empty, Typography, Input, Progress, Tooltip,
 } from 'antd';
-import { SearchOutlined, ShopOutlined } from '@ant-design/icons';
+import { SearchOutlined, ShopOutlined, EyeOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 
 const { Text } = Typography;
 const BASE = (import.meta.env.VITE_API_URL || 'https://back.sherykids.com/api/v1').replace('/api/v1', '');
 
 export default function Coupons() {
+  const navigate = useNavigate();
   const [data, setData]       = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
@@ -105,6 +107,19 @@ export default function Coupons() {
     },
   ];
 
+  // Add a "View Detail" column
+  const detailCol = {
+    title: '',
+    align: 'center',
+    render: (_, r) => (
+      <EyeOutlined
+        style={{ color: '#FF383C', cursor: 'pointer', fontSize: 16 }}
+        onClick={() => navigate(`/coupons/${r.id}`)}
+        title="View detail"
+      />
+    ),
+  };
+
   if (loading) return (
     <div style={{ display:'flex', justifyContent:'center', alignItems:'center', minHeight:400 }}>
       <Spin size="large" />
@@ -129,7 +144,13 @@ export default function Coupons() {
       }
     >
       {filtered.length
-        ? <Table dataSource={filtered} columns={columns} rowKey="id" pagination={{ pageSize: 15, showSizeChanger: false }} />
+        ? <Table
+            dataSource={filtered}
+            columns={[...columns, detailCol]}
+            rowKey="id"
+            pagination={{ pageSize: 15, showSizeChanger: false }}
+            onRow={r => ({ onClick: () => navigate(`/coupons/${r.id}`), style: { cursor: 'pointer' } })}
+          />
         : <Empty description="No coupons yet" />
       }
     </Card>

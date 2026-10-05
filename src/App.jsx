@@ -5,8 +5,11 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import Coupons from './pages/Coupons';
+import CouponDetail from './pages/CouponDetail';
+import Customers from './pages/Customers';
 import Reports from './pages/Reports';
 import Scanners from './pages/Scanners';
+import QrScanner from './pages/QrScanner';
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 
@@ -23,12 +26,15 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<Protected><VendorLayout /></Protected>}>
             <Route index element={<Dashboard />} />
-            <Route path="analytics"     element={<Analytics />} />
-            <Route path="coupons"       element={<Coupons />} />
-            <Route path="reports"       element={<Reports />} />
-            <Route path="scanners"      element={<Scanners />} />
-            <Route path="notifications" element={<Notifications />} />
-            <Route path="profile"       element={<Profile />} />
+            <Route path="analytics"       element={<Analytics />} />
+            <Route path="coupons"         element={<Coupons />} />
+            <Route path="coupons/:id"     element={<CouponDetail />} />
+            <Route path="customers"       element={<Customers />} />
+            <Route path="reports"         element={<Reports />} />
+            <Route path="scanners"        element={<Scanners />} />
+            <Route path="qr-scanner"      element={<QrScanner />} />
+            <Route path="notifications"   element={<Notifications />} />
+            <Route path="profile"         element={<Profile />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

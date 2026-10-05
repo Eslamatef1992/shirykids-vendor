@@ -1,25 +1,82 @@
-import React, { useEffect, useState } from 'react';
-import { Row, Col, Card, Statistic, Table, Tag, Spin, Empty, Typography } from 'antd';
-import { DollarOutlined, QrcodeOutlined, CheckCircleOutlined, TrophyOutlined } from '@ant-design/icons';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Row, Col, Card, Statistic, Table, Tag, Spin, Empty, Typography, DatePicker, Space, Button, message } from 'antd';
+import { DollarOutlined, QrcodeOutlined, CheckCircleOutlined, TrophyOutlined, FileExcelOutlined, FilePdfOutlined, MailOutlined } from '@ant-design/icons';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, Cell,
 } from 'recharts';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import api from '../api/axios';
+
+const { RangePicker } = DatePicker;
 
 const { Text } = Typography;
 const COLORS = ['#FF383C','#1890ff','#52c41a','#fa8c16','#722ed1','#13c2c2','#eb2f96','#faad14','#2f54eb','#f5222d'];
 
 export default function Analytics() {
-  const [data, setData]     = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData]         = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [dateRange, setDateRange] = useState(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
-  useEffect(() => {
-    api.get('/vendor/analytics')
+  const fetchData = useCallback((range) => {
+    setLoading(true);
+    const params = {};
+    if (range?.[0]) params.from = range[0].format('YYYY-MM-DD');
+    if (range?.[1]) params.to   = range[1].format('YYYY-MM-DD');
+    api.get('/vendor/analytics', { params })
       .then(r => setData(r.data.data))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { fetchData(null); }, [fetchData]);
+
+  const handleRangeChange = (range) => {
+    setDateRange(range);
+    fetchData(range);
+  };
+
+  const sendSummaryEmail = async () => {
+    setSendingEmail(true);
+    try {
+      const res = await api.post('/vendor/email-summary');
+      message.success(res.data.message || 'Summary email sent!');
+    } catch (e) {
+      message.error(e.response?.data?.message || 'Failed to send email');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const exportExcel = () => {
+    if (!data?.topCoupons?.length) return;
+    const rows = data.topCoupons.map((c, i) => ({
+      Rank: i + 1, Coupon: c.name, Scans: c.count, 'Revenue (KD)': parseFloat(c.revenue).toFixed(3),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Top Coupons');
+    XLSX.writeFile(wb, `analytics-${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
+  const exportPDF = () => {
+    if (!data?.topCoupons?.length) return;
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text('Analytics Report', 14, 16);
+    doc.setFontSize(10); doc.setTextColor(120);
+    doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, 14, 22);
+    autoTable(doc, {
+      startY: 28,
+      head: [['Rank', 'Coupon', 'Scans', 'Revenue (KD)']],
+      body: data.topCoupons.map((c, i) => [i+1, c.name, c.count, parseFloat(c.revenue).toFixed(3)]),
+      headStyles: { fillColor: [255, 56, 60] },
+    });
+    doc.save(`analytics-${new Date().toISOString().slice(0,10)}.pdf`);
+  };
 
   if (loading) return (
     <div style={{ display:'flex', justifyContent:'center', alignItems:'center', minHeight:400 }}>
@@ -61,6 +118,26 @@ export default function Analytics() {
 
   return (
     <>
+      {/* Toolbar */}
+      <Card bordered={false} style={{ borderRadius: 12, marginBottom: 20 }} bodyStyle={{ padding: '12px 20px' }}>
+        <div style={{ display:'flex', gap:12, flexWrap:'wrap', alignItems:'center', justifyContent:'space-between' }}>
+          <Space wrap>
+            <RangePicker onChange={handleRangeChange} size="small" style={{ borderRadius: 8 }} />
+            <Button size="small" onClick={() => handleRangeChange(null)} style={{ borderRadius: 8 }}>
+              All Time
+            </Button>
+          </Space>
+          <Space wrap>
+            <Button icon={<FileExcelOutlined />} size="small" onClick={exportExcel} disabled={!data?.topCoupons?.length}
+              style={{ borderRadius: 8, borderColor:'#52c41a', color:'#52c41a' }}>Excel</Button>
+            <Button icon={<FilePdfOutlined />} size="small" onClick={exportPDF} disabled={!data?.topCoupons?.length}
+              style={{ borderRadius: 8, borderColor:'#FF383C', color:'#FF383C' }}>PDF</Button>
+            <Button icon={<MailOutlined />} size="small" loading={sendingEmail} onClick={sendSummaryEmail}
+              style={{ borderRadius: 8, borderColor:'#1890ff', color:'#1890ff' }}>Email Summary</Button>
+          </Space>
+        </div>
+      </Card>
+
       {/* Summary cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
