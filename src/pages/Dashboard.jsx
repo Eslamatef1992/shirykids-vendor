@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Row, Col, Card, Statistic, Table, Tag, Avatar, Space, Spin, Empty, Typography, Alert, Badge } from 'antd';
-import { ShopOutlined, ShoppingCartOutlined, QrcodeOutlined, ReloadOutlined, WarningOutlined } from '@ant-design/icons';
+import { ShopOutlined, ShoppingCartOutlined, QrcodeOutlined, DollarOutlined, ReloadOutlined, WarningOutlined } from '@ant-design/icons';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
@@ -144,6 +144,17 @@ export default function Dashboard() {
               value={stats?.summary?.totalScanned ?? 0}
               prefix={<QrcodeOutlined style={{ color: '#1890ff' }} />}
               valueStyle={{ color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card bordered={false} style={{ borderRadius: 12 }}>
+            <Statistic
+              title="Revenue (Scanned Coupons)"
+              value={revenue?.totalRevenue?.toFixed(3) ?? '0.000'}
+              prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
+              suffix="KD"
+              valueStyle={{ color: '#52c41a' }}
             />
           </Card>
         </Col>
