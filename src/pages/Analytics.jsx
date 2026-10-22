@@ -90,8 +90,8 @@ export default function Analytics() {
     ? Math.round((data.successfulScans / data.totalScans) * 100)
     : 0;
 
-  const redemptionRate = data.successfulScans > 0
-    ? Math.round((data.redeemedScans / data.successfulScans) * 100)
+  const redemptionRate = data.totalScans > 0
+    ? Math.round((data.redeemedScans / data.totalScans) * 100)
     : 0;
 
   const topCouponsForChart = data.topCoupons.slice(0, 8).map(c => ({
@@ -175,7 +175,7 @@ export default function Analytics() {
         <Col xs={24} sm={12} lg={6}>
           <Card bordered={false} style={{ borderRadius: 12 }}>
             <Statistic
-              title="Redemption Rate"
+              title="Already Used Rate"
               value={redemptionRate}
               suffix="%"
               prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />}
@@ -198,7 +198,7 @@ export default function Analytics() {
                   <Tooltip formatter={(v) => `KD ${parseFloat(v).toFixed(3)}`} />
                   <Legend />
                   <Line type="monotone" dataKey="revenue" stroke="#FF383C" strokeWidth={2} dot={{ r:4 }} name="Revenue (KD)" />
-                  <Line type="monotone" dataKey="count"   stroke="#1890ff" strokeWidth={2} dot={{ r:4 }} name="Redemptions" />
+                  <Line type="monotone" dataKey="count"   stroke="#1890ff" strokeWidth={2} dot={{ r:4 }} name="Valid Scans" />
                 </LineChart>
               </ResponsiveContainer>
             ) : <Empty description="No revenue data yet" />}
