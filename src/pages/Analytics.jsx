@@ -64,18 +64,77 @@ export default function Analytics() {
 
   const exportPDF = () => {
     if (!data?.topCoupons?.length) return;
-    const doc = new jsPDF();
-    doc.setFontSize(14);
-    doc.text('Analytics Report', 14, 16);
-    doc.setFontSize(10); doc.setTextColor(120);
-    doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, 14, 22);
-    autoTable(doc, {
-      startY: 28,
-      head: [['Rank', 'Coupon', 'Scans', 'Revenue (KD)']],
-      body: data.topCoupons.map((c, i) => [i+1, c.name, c.count, parseFloat(c.revenue).toFixed(3)]),
-      headStyles: { fillColor: [255, 56, 60] },
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+
+    // ── Header bar ────────────────────────────────────────────────
+    doc.setFillColor(255, 56, 60);
+    doc.rect(0, 0, pageW, 28, 'F');
+
+    // Logo (top-left)
+    const logoImg = new Image(); logoImg.src = '/logo.png';
+    try { doc.addImage(logoImg, 'PNG', 8, 4, 20, 20); } catch (_) {}
+
+    // Title
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+    doc.text('Analytics Report', 34, 13);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.text('Shiry Kids Vendor Dashboard', 34, 20);
+
+    // Date (top-right)
+    doc.setFontSize(9);
+    doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, pageW - 14, 13, { align: 'right' });
+
+    // ── Summary cards ─────────────────────────────────────────────
+    const cardY = 36;
+    const cards = [
+      { label: 'Total Revenue', value: `KD ${parseFloat(data.totalRevenue || 0).toFixed(3)}` },
+      { label: 'Valid Scans',   value: String(data.successfulScans || 0) },
+      { label: 'Success Rate',  value: `${successRate}%` },
+      { label: 'Top Coupon',    value: data.topCoupons[0]?.name || '—' },
+    ];
+    const cardW = (pageW - 28) / 4;
+    cards.forEach((card, i) => {
+      const x = 14 + i * (cardW + 2);
+      doc.setFillColor(255, 245, 245);
+      doc.roundedRect(x, cardY, cardW, 18, 3, 3, 'F');
+      doc.setDrawColor(255, 56, 60); doc.setLineWidth(0.3);
+      doc.roundedRect(x, cardY, cardW, 18, 3, 3, 'S');
+      doc.setTextColor(255, 56, 60); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.text(card.label.toUpperCase(), x + cardW / 2, cardY + 6, { align: 'center' });
+      doc.setTextColor(30, 30, 30); doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+      doc.text(card.value, x + cardW / 2, cardY + 14, { align: 'center' });
     });
-    doc.save(`analytics-${new Date().toISOString().slice(0,10)}.pdf`);
+
+    // ── Table ─────────────────────────────────────────────────────
+    doc.setTextColor(60, 60, 60); doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+    doc.text('Top Coupons Breakdown', 14, cardY + 26);
+
+    autoTable(doc, {
+      startY: cardY + 30,
+      head: [['#', 'Coupon', 'Valid Scans', 'Revenue (KD)']],
+      body: data.topCoupons.map((c, i) => [i + 1, c.name, c.count, parseFloat(c.revenue).toFixed(3)]),
+      headStyles: { fillColor: [255, 56, 60], textColor: 255, fontStyle: 'bold', fontSize: 10 },
+      bodyStyles: { fontSize: 10, textColor: [40, 40, 40] },
+      alternateRowStyles: { fillColor: [255, 248, 248] },
+      columnStyles: { 0: { halign: 'center', cellWidth: 14 }, 2: { halign: 'center' }, 3: { halign: 'right' } },
+      margin: { left: 14, right: 14 },
+      tableLineColor: [255, 200, 200], tableLineWidth: 0.1,
+    });
+
+    // ── Footer ────────────────────────────────────────────────────
+    doc.setFillColor(245, 245, 245);
+    doc.rect(0, pageH - 14, pageW, 14, 'F');
+    doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
+    doc.line(0, pageH - 14, pageW, pageH - 14);
+    doc.setTextColor(150, 150, 150); doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+    doc.text('Powered by Teknulugy', pageW / 2, pageH - 5, { align: 'center' });
+    doc.text(`© ${new Date().getFullYear()} Shiry Kids. All rights reserved.`, 14, pageH - 5);
+    doc.text(`Page 1`, pageW - 14, pageH - 5, { align: 'right' });
+
+    doc.save(`analytics-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
   if (loading) return (
