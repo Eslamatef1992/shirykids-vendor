@@ -21,26 +21,25 @@ export default function Dashboard() {
 
   const fetchAll = useCallback((silent = false) => {
     if (!silent) setLoading(true);
-    Promise.all([
+    Promise.allSettled([
       api.get('/vendor/stats'),
       api.get('/vendor/daily-activity'),
       api.get('/vendor/analytics'),
       api.get('/vendor/coupons/low-stock'),
     ])
       .then(([s, a, r, ls]) => {
-        setStats(s.data);
-        setRevenue(r.data.data);
-        setActivity(
-          (a.data.data || []).map(row => ({
+        if (s.status === 'fulfilled') setStats(s.value.data);
+        if (r.status === 'fulfilled') setRevenue(r.value.data.data);
+        if (a.status === 'fulfilled') setActivity(
+          (a.value.data.data || []).map(row => ({
             day:      row.day?.slice(5) || '',
             Scanned:  parseInt(row.scanned  || 0, 10),
             Redeemed: parseInt(row.redeemed || 0, 10),
           }))
         );
-        setLowStock(ls.data.data || []);
+        if (ls.status === 'fulfilled') setLowStock(ls.value.data.data || []);
         setLastUpdated(new Date());
       })
-      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
