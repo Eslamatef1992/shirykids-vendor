@@ -240,16 +240,17 @@ export default function Scanners() {
                 <Card size="small" bordered style={{ borderRadius: 8, borderColor: COLORS[i % COLORS.length] }}>
                   <div style={{ fontWeight: 600, marginBottom: 4, color: COLORS[i % COLORS.length] }}>{s.name}</div>
                   <div style={{ fontSize: 12, color: '#555' }}>
-                    <div>Scanned: <strong>{s.scanned}</strong></div>
-                    <div>Redeemed: <strong>{s.redeemed}</strong></div>
-                    <div>Total: <strong>{s.total}</strong></div>
+                    <div>Valid Scans: <strong>{s.scanned}</strong></div>
+                    <div>Already Used: <strong>{s.redeemed}</strong></div>
+                    <div>All Attempts: <strong>{s.total}</strong></div>
                   </div>
                   {s.total > 0 && (
                     <Progress
-                      percent={Math.round((s.redeemed / s.total) * 100)}
+                      percent={Math.round((s.scanned / s.total) * 100)}
                       size="small"
                       strokeColor={COLORS[i % COLORS.length]}
                       style={{ marginTop: 6 }}
+                      format={p => `${p}% valid`}
                     />
                   )}
                 </Card>
